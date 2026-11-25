@@ -1,0 +1,281 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Simulador Termo-Hidráulico</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+  <script src="{{ url_for('static', filename='script.js') }}" defer></script>
+</head>
+<body>
+{% set P = {
+ 'gota': '<path d="M12 22a7 7 0 0 0 7-7c0-2-1-3.9-3-5.5s-3.5-4-4-6.5c-.5 2.5-2 4.9-4 6.5C6 11.1 5 13 5 15a7 7 0 0 0 7 7z"/>',
+ 'casa': '<path d="m3 10 9-8 9 8v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" fill="currentColor"/><path d="M9 22v-8h6v8" stroke="#1f4f9f"/>',
+ 'barras': '<path d="M6 20v-5M12 20V9M18 20V4" stroke-width="4"/>',
+ 'info': '<circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/>',
+ 'engrenagem': '<circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9 7 7M17 17l2.1 2.1M4.9 19.1 7 17M17 7l2.1-2.1"/><circle cx="12" cy="12" r="7"/>',
+ 'termo': '<path d="M14 4v10.5a4 4 0 1 1-4 0V4a2 2 0 0 1 4 0Z"/><path d="M12 9v7"/>',
+ 'ondas': '<path d="M2 7c2.5-3 4.5 3 7 0s4.500 3 7 0 4.500 3 6 0M2 14c2.500-3 4.500 3 7 0s4.500 3 7 0 4.500 3 6 0"/>',
+ 'regua': '<path d="M21.300 15.300a2.400 2.400 0 0 1 0 3.400l-2.600 2.600a2.400 2.400 0 0 1-3.400 0L2.700 8.700a2.400 2.400 0 0 1 0-3.400l2.600-2.600a2.400 2.400 0 0 1 3.400 0Z"/><path d="m14.500 12.500 2-2M11.500 9.500l2-2M8.500 6.500l2-2M17.500 15.500l2-2"/>',
+ 'diametro': '<circle cx="12" cy="12" r="8"/><path d="M4 20 20 4"/>',
+ 'escudo': '<path d="M20 13c0 5-3.500 7.500-7.660 8.950a1 1 0 0 1-.670-.010C7.500 20.500 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.500-1.200 6.240-2.720a1.170 1.170 0 0 1 1.520 0C14.510 3.810 17 5 19 5a1 1 0 0 1 1 1z" fill="currentColor"/><path d="m9 12 2 2 4-4" stroke="#fff"/>',
+ 'raio': '<path d="M13 2 3 14h9l-1 8 10-12h-9z" fill="currentColor"/>',
+ 'folha': '<path d="M11 20A7 7 0 0 1 9.800 6.100C15.500 5 17 4.480 19 2c1 2 2 4.180 2 8 0 5.500-4.780 10-10 10Z" fill="currentColor"/><path d="M2 21c0-3 1.850-5.360 5.080-6C9.500 14.520 12 13 13 12"/>',
+ 'tendencia': '<path d="M3 3v18h18"/><path d="m19 9-5 5-4-4-3 3"/>',
+ 'play': '<path d="M6 3 20 12 6 21z" fill="currentColor"/>'
+} %}
+{% macro ic(n) %}<svg class="ic" viewBox="0 0 24 24">{{ P[n]|safe }}</svg>{% endmacro %}
+
+<div class="janela">
+  <header>
+    {{ ic('gota') }}
+    <h1>Simulador Termo-Hidráulico</h1>
+    <span class="controles"><span>&#8212;</span><span>&#9744;</span><span>&#10005;</span></span>
+  </header>
+
+  <div class="corpo">
+    <nav>
+      <a class="nav-link ativo" href="#" data-aba="simulacao">{{ ic('casa') }} Simulação</a>
+      <a class="nav-link" href="#" data-aba="resultados">{{ ic('barras') }} Resultados</a>
+      <a class="nav-link" href="#" data-aba="sobre">{{ ic('info') }} Sobre</a>
+      <span class="gota">{{ ic('gota') }}</span>
+    </nav>
+
+    <form method="post" class="cartao" id="form-simulacao">
+      <h2>{{ ic('engrenagem') }} Parâmetros de Entrada</h2>
+
+      <label class="campo">
+        {{ ic('termo') }}
+        <span>Temperatura de Entrada (°C)</span>
+        <input type="number" step="any" name="t_in" id="inp-tin" value="{{ '%g'|format(d.t_in) }}" required>
+      </label>
+
+      <label class="campo">
+        {{ ic('ondas') }}
+        <span>Vazão (kg/s)</span>
+        <input type="number" step="any" min="0.001" name="vazao" id="inp-vazao" value="{{ '%g'|format(d.vazao) }}" required>
+      </label>
+
+      <label class="campo">
+        {{ ic('regua') }}
+        <span>Comprimento da Tubulação (m)</span>
+        <input type="number" step="any" min="0.1" name="comp" id="inp-comp" value="{{ '%g'|format(d.comp) }}" required>
+      </label>
+
+      <label class="campo">
+        {{ ic('diametro') }}
+        <span>Diâmetro (m)</span>
+        <input type="number" step="any" min="0.005" name="diam" id="inp-diam" value="{{ '%g'|format(d.diam) }}" required>
+      </label>
+
+      <hr>
+
+      <h3>{{ ic('escudo') }} Isolamento Térmico</h3>
+      <select name="iso" id="select-iso">
+        {% for nome, info in isolantes.items() %}
+          <option value="{{ nome }}"
+                  data-classe="{{ info.classe }}"
+                  data-k="{{ info.k }}"
+                  data-desc="{{ info.desc }}"
+                  {{ 'selected' if nome == d.iso }}>
+            {{ nome }}
+          </option>
+        {% endfor %}
+      </select>
+
+      <div class="info-material" id="info-material">
+        <span class="badge-k">k = {{ isolantes[d.iso].k }} W/m·K</span>
+        <p>{{ isolantes[d.iso].desc }}</p>
+      </div>
+
+      <label class="linha">
+        <span>Espessura (mm)</span>
+        <input type="number" step="any" min="0" name="esp" id="inp-esp" value="{{ '%g'|format(d.esp) }}" required>
+      </label>
+
+      <button type="submit">{{ ic('play') }} Executar Simulação</button>
+    </form>
+
+    <!-- ABA 1: SIMULAÇÃO -->
+    <main class="aba-conteudo ativo" id="aba-simulacao">
+      <section class="cartao">
+        <h2>{{ ic('barras') }} Resumo da Simulação</h2>
+        <div class="metricas">
+          <div>{{ ic('termo') }}<p>Temperatura de Saída</p><b>{{ "%.1f"|format(res.t_out) }} °C</b></div>
+          <div>{{ ic('raio') }}<p>Perda de Energia</p><b>{{ "%.2f"|format(res.perda) }} kW</b></div>
+          <div>{{ ic('folha') }}<p>Redução da Perda</p><b>≈ {{ "%.0f"|format(res.reducao) }}%</b></div>
+        </div>
+
+        <div class="tubo-header">
+          <span>Visualização da Camada Isolante:</span>
+          <strong id="label-tubo-iso">{{ d.iso }} ({{ '%g'|format(d.esp) }} mm)</strong>
+        </div>
+
+        <div class="tubo-area">
+          <div class="ponta">
+            <span class="rotulo">{{ "%.1f"|format(d.t_in) }} °C</span>
+            <svg class="baixo" viewBox="0 0 16 34"><path d="M8 0v30M2 24l6 8 6-8" fill="none" stroke="#0f2d5c" stroke-width="2"/></svg>
+            <svg class="seta" viewBox="0 0 44 26"><path d="M0 8h26V0l18 13-18 13v-8H0z"/></svg>
+          </div>
+          <div class="tubo {{ isolantes[d.iso].classe }}" id="visual-tubo">
+            <div class="aco"></div>
+          </div>
+          <div class="ponta">
+            <span class="rotulo">{{ "%.1f"|format(res.t_out) }} °C</span>
+            <svg class="baixo" viewBox="0 0 16 34"><path d="M8 0v30M2 24l6 8 6-8" fill="none" stroke="#0f2d5c" stroke-width="2"/></svg>
+            <svg class="seta" viewBox="0 0 44 26"><path d="M0 8h26V0l18 13-18 13v-8H0z"/></svg>
+          </div>
+        </div>
+      </section>
+
+      <section class="cartao grafico-box">
+        <div class="topo">
+          <h2>{{ ic('tendencia') }} Perfil de Temperatura</h2>
+          <span class="legenda">
+            <svg width="34" height="12"><path d="M0 6h34" stroke="#1f5fd0" stroke-width="2"/><circle cx="17" cy="6" r="5" fill="#1f5fd0"/></svg> Com Isolamento
+            <svg width="34" height="12"><path d="M0 6h34" stroke="#8794ad" stroke-width="2" stroke-dasharray="5 3"/><circle cx="17" cy="6" r="5" fill="#8794ad"/></svg> Sem Isolamento
+          </span>
+        </div>
+        <div id="tooltip-grafico" class="tooltip-svg"></div>
+        <svg viewBox="0 0 640 300" id="svg-perfil">
+          {% for x, t in g.xticks %}
+            <path class="grade" d="M{{ x }} 20V230"/>
+            <text x="{{ x }}" y="254" text-anchor="middle">{{ t }}</text>
+          {% endfor %}
+          {% for y, t in g.yticks %}
+            <path class="eixo" d="M74 {{ y }}H80"/>
+            <text x="66" y="{{ y + 5 }}" text-anchor="end">{{ t }}</text>
+          {% endfor %}
+          <path class="eixo" d="M80 20V230H600"/>
+          <polyline class="sem" points="{% for x, y, _, _ in g.sem %}{{ x }},{{ y }} {% endfor %}"/>
+          <polyline class="com" points="{% for x, y, _, _ in g.com %}{{ x }},{{ y }} {% endfor %}"/>
+          {% for x, y, vx, vt in g.sem %}
+            <circle cx="{{ x }}" cy="{{ y }}" r="5.5" class="ps ponto-interativo"
+                    data-tipo="Sem Isolamento" data-x="{{ vx }}" data-t="{{ vt }}"/>
+          {% endfor %}
+          {% for x, y, vx, vt in g.com %}
+            <circle cx="{{ x }}" cy="{{ y }}" r="5.5" class="pc ponto-interativo"
+                    data-tipo="Com Isolamento ({{ d.iso }})" data-x="{{ vx }}" data-t="{{ vt }}"/>
+          {% endfor %}
+          <text x="340" y="290" text-anchor="middle" class="tit">Comprimento da Tubulação (m)</text>
+          <text transform="rotate(-90 20 125)" x="20" y="125" text-anchor="middle" class="tit">Temperatura (°C)</text>
+        </svg>
+      </section>
+    </main>
+
+    <!-- ABA 2: RESULTADOS DETALHADOS -->
+    <main class="aba-conteudo" id="aba-resultados">
+      <section class="cartao">
+        <h2>{{ ic('barras') }} Análise Comparativa Detalhada</h2>
+
+        <div class="grid-comparativo">
+          <div class="card-detalhe">
+            <h4>Com Isolamento ({{ d.iso }})</h4>
+            <ul>
+              <li><span>Temperatura Final:</span> <b>{{ "%.2f"|format(res.t_out) }} °C</b></li>
+              <li><span>Queda Térmica Total:</span> <b>{{ "%.2f"|format(d.t_in - res.t_out) }} °C</b></li>
+              <li><span>Potência Perdida:</span> <b>{{ "%.3f"|format(res.perda) }} kW</b></li>
+              <li><span>Resistência Linear (R'):</span> <b>{{ "%.3f"|format(res.r_com) }} m·K/W</b></li>
+            </ul>
+          </div>
+          <div class="card-detalhe neutro">
+            <h4>Tubulação Nua (Sem Isolamento)</h4>
+            <ul>
+              <li><span>Temperatura Final:</span> <b>{{ "%.2f"|format(res.t_out_sem) }} °C</b></li>
+              <li><span>Queda Térmica Total:</span> <b>{{ "%.2f"|format(d.t_in - res.t_out_sem) }} °C</b></li>
+              <li><span>Potência Perdida:</span> <b>{{ "%.3f"|format(res.perda_sem) }} kW</b></li>
+              <li><span>Resistência Linear (R'):</span> <b>{{ "%.3f"|format(res.r_sem) }} m·K/W</b></li>
+            </ul>
+          </div>
+        </div>
+
+        <div class="destaque-economia">
+          <span>Energia Térmica Preservada pelo Isolamento:</span>
+          <b>+{{ "%.3f"|format(res.economia_kw) }} kW ({{ "%.1f"|format(res.reducao) }}% de eficiência)</b>
+        </div>
+      </section>
+
+      <section class="cartao">
+        <h2>{{ ic('tendencia') }} Distribuição Axial de Temperatura</h2>
+        <div class="tabela-wrapper">
+          <table class="tabela-dados" id="tabela-resultados">
+            <thead>
+              <tr>
+                <th>Posição x (m)</th>
+                <th>T com Isolamento (°C)</th>
+                <th>T sem Isolamento (°C)</th>
+                <th>Diferença Térmica ΔT (°C)</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for p in tabela_pontos %}
+              <tr>
+                <td>{{ "%.2f"|format(p.x) }}</td>
+                <td><strong>{{ "%.2f"|format(p.t_com) }}</strong></td>
+                <td>{{ "%.2f"|format(p.t_sem) }}</td>
+                <td class="positivo">+{{ "%.2f"|format(p.ganho) }} °C</td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </section>
+    </main>
+
+    <!-- ABA 3: SOBRE O SIMULADOR -->
+    <main class="aba-conteudo" id="aba-sobre">
+      <section class="cartao">
+        <h2>{{ ic('info') }} Sobre o Simulador Termo-Hidráulico</h2>
+        <p class="texto-sobre">
+          Esta ferramenta modela o decaimento axial de temperatura de um fluido incompressível (água) escoando em regime permanente no interior de uma tubulação cilíndrica isolada termicamente, comparando o desempenho com uma tubulação exposta diretamente ao ambiente.
+        </p>
+
+        <div class="bloco-formula">
+          <h4>Modelo Matemático Utilizado</h4>
+          <p>A temperatura ao longo do comprimento <em>x</em> é obtida pelo balanço diferencial de energia:</p>
+          <div class="formula">T(x) = T<sub>amb</sub> + (T<sub>in</sub> − T<sub>amb</sub>) · exp( −F · x / (R'<sub>total</sub> · ṁ · c<sub>p</sub>) )</div>
+          <p>Onde a resistência térmica linear total por metro de tubulação (R'<sub>total</sub>) combina condução radial na camada isolante e convecção externa:</p>
+          <div class="formula">R'<sub>total</sub> = ln(r<sub>2</sub> / r<sub>1</sub>) / (2π · k<sub>iso</sub>) + 1 / (h<sub>ext</sub> · 2π · r<sub>2</sub>)</div>
+        </div>
+
+        <div class="constantes-grid">
+          <div><span>Calor Específico (c<sub>p</sub>)</span><b>{{ constantes.cp }} J/kg·K</b></div>
+          <div><span>Temp. Ambiente (T<sub>amb</sub>)</span><b>{{ constantes.t_amb }} °C</b></div>
+          <div><span>Convecção Ext. (h<sub>ext</sub>)</span><b>{{ constantes.h_ext }} W/m²·K</b></div>
+          <div><span>Fator de Pontes Térmicas</span><b>{{ constantes.fator }}</b></div>
+        </div>
+      </section>
+
+      <section class="cartao">
+        <h2>{{ ic('escudo') }} Biblioteca de Materiais Isolantes</h2>
+        <div class="tabela-wrapper">
+          <table class="tabela-dados">
+            <thead>
+              <tr>
+                <th>Material</th>
+                <th>Condutividade k (W/m·K)</th>
+                <th>Temp. Máx.</th>
+                <th>Aplicação Típica</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for nome, info in isolantes.items() %}
+              <tr>
+                <td>
+                  <span class="amostra-cor {{ info.classe }}"></span>
+                  <strong>{{ nome }}</strong>
+                </td>
+                <td>{{ "%.3f"|format(info.k) }}</td>
+                <td>{{ info.temp_max }}</td>
+                <td>{{ info.desc }}</td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </section>
+    </main>
+  </div>
+</div>
+</body>
+</html>
